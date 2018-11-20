@@ -1,0 +1,381 @@
+-- 全局变量      -- public static
+show global variables;
+
+
+-- 用户变量      -- package可用的public属性
+SET @username = "wz";
+
+-- 会话变量      -- class可用的protected属性
+show SESSION VARIABLES;
+
+-- 临时变量      -- 方法中的临时变量
+DECLARE i INT DEFAULT 10;
+
+DROP PROCEDURE test1;
+CREATE PROCEDURE test1 ()  -- void test1()
+BEGIN  										 -- {
+DECLARE i INT DEFAULT 10;  --     int i = 10;
+DECLARE sname VARCHAR(20) DEFAULT "unknown"; 
+DECLARE isOpen INT DEFAULT TRUE;   -- 0代表假  非0代表真  TRUE = 1
+
+SET i = (SELECT COUNT(*) FROM teacher);						 --     i = i + 1;
+SELECT i;                  --     sysout i;   
+
+SET sname = "wangzheng";
+SELECT sname; 
+
+SELECT isOpen;
+END  		                   -- } 
+
+CALL test1;
+
+-- java是纯面向对象语言 C++面向过程+面向对象的语言  C语言是纯面向过程语言
+-- 类+方法                  类+方法+函数                   函数
+
+-- 高阶语言 -》 汇编语言 -》 机器语言
+
+/* 把这个方法翻译成mysql的存储过程 */
+/* 
+void sumThree (){
+	int a,b,c;
+  a = 3;
+  b = 4;
+  c = 5;
+	int d;
+  d = a + b + c;
+	sysout d;
+}
+*/
+
+/* 存储过程 可以将运行过程中的中间结果保留下来，作为下一步执行的数据*/
+/* 存储过程是一个整体，要么全部执行，要么一步都不执行，不能只走一半*/
+DROP PROCEDURE sumThree;
+CREATE PROCEDURE sumThree() 
+BEGIN
+DECLARE a , b , c , d INT DEFAULT 0;   -- int a, b, c, d;
+SET a = 3;
+SET b = 4;
+SET c = 5;
+SET d = a + b + c; 
+SELECT d;
+END
+
+CALL sumThree;
+
+DROP PROCEDURE minThree;
+CREATE PROCEDURE minThree() 
+BEGIN
+DECLARE a , b , c INT DEFAULT 0;   -- int a, b, c;
+SET a = 3;
+SET b = 5;
+SET c = 4;
+IF a > b THEN 
+SET a = b;
+END IF;
+IF a > c THEN 
+SET a = c;
+END IF;
+
+SELECT a AS 最小值;
+END
+
+CALL minThree;
+/*
+if (a < b) a = b;
+if (a < c) a = c;
+*/
+/* 将上述程序改为求三个数的最小值 */
+
+/* 判断一个数是奇数还是偶数 */
+DROP PROCEDURE numberForm;
+CREATE PROCEDURE numberForm() 
+BEGIN
+DECLARE a INT DEFAULT 11; 
+IF a % 2 = 0 THEN 
+SELECT "a是偶数" AS result;
+ELSE 
+SELECT "a是奇数" AS result;
+END IF;
+
+END
+
+CALL numberForm;
+
+
+/* 有没有比最低薪多1000资的人，如果有，输出他的名字，如果没有,插入一条这样的数据 */
+DROP PROCEDURE searchForStudent;
+CREATE PROCEDURE searchForStudent ()
+BEGIN
+-- 一次性定义所有需要的变量 --
+DECLARE search_salary DOUBLE(8,2);
+DECLARE search_name VARCHAR(20);
+
+-- 查出薪资最低的人的薪资 --
+SET search_salary = (SELECT MIN(salary) FROM student);
+-- 查出薪资最低的人多1000的人的姓名 --
+SET search_name = (SELECT sname FROM student WHERE salary = search_salary + 1000);
+-- 判断人是否存在 --
+IF search_name IS NULL THEN 
+-- 如果不存在，插入一条符合要求的数据 --
+INSERT INTO student (salary, sno, sname) VALUES (search_salary+1000,"s011", "default");
+-- 如果存在 输出名字
+ELSE SELECT search_name;
+END IF;
+
+END
+
+CALL searchForStudent;
+
+-- CASE 是点对点的判断 --
+-- CASE 对应java中的switch， WHEN 对应java中的case  ELSE 对应java中的default
+DROP PROCEDURE switchProc;
+CREATE PROCEDURE switchProc ()
+BEGIN 
+DECLARE time DOUBLE(4,2) DEFAULT 1.2;
+CASE time 	
+	WHEN 1.2 THEN SELECT time + 0.5;
+	WHEN 2 THEN SELECT "不符合";
+	WHEN 1.4 THEN SELECT time;
+	ELSE SELECT time - 0.5;
+END CASE;
+
+END
+
+CALL switchProc;
+
+-- 循环语句使用：repeat 和 while
+-- repeat对应java中的do while； while对应java中的while
+DROP PROCEDURE whileProc;
+CREATE PROCEDURE whileProc ()
+BEGIN
+DECLARE i INT DEFAULT 5;
+
+/*
+K: WHILE i < 100 DO    -- 进入循环条件 --
+SELECT i;
+SET i = i + 1;
+END WHILE K;
+*/
+
+K: REPEAT 
+SELECT i;
+SET i = i + 1;
+UNTIL i = 10 END REPEAT K; -- 结束循环的条件 --
+
+END
+
+CALL whileProc;
+
+/* 遍历2-10，分别输出哪些数可以对自然2、3、5整除 */
+DROP PROCEDURE numberProc;
+CREATE PROCEDURE numberProc ()
+BEGIN
+DECLARE i INT DEFAULT 2;
+
+numberEnum: WHILE i < 11 DO 
+IF i%2 = 0 THEN
+	SELECT i AS "能被2整除";
+END IF;
+
+IF i%3 = 0 THEN
+	SELECT i AS "能被3整除";
+END IF;
+
+IF i%5 = 0 THEN
+	SELECT i AS "能被5整除";
+END IF;
+
+SET i = i+1;
+
+IF NOT (i%2 = 0 OR i%3 = 0 OR i%5 = 0) THEN  -- i%2!=0 AND i%3!=0 AND i%5!=0
+	LEAVE numberEnum;
+END IF;
+
+END WHILE numberEnum;
+
+END
+
+CALL numberProc;
+
+-- 跳出
+-- leave: 对应break
+-- interate：对应continue
+
+
+-- 带参数、返回值的存储过程 --
+DROP PROCEDURE concatStr;
+CREATE PROCEDURE concatStr(IN str1 VARCHAR(20) ,IN str2 VARCHAR(20), OUT result VARCHAR(40)) 
+BEGIN
+SELECT str1;
+SELECT str2;
+SET result = CONCAT(str1, str2); -- 加号一般用于select输出数据时
+SET result = REPLACE("abcdef", "bc", "**");
+-- SELECT result;
+END
+
+-- SET result = SUBSTR("abcdef", 2, 3); -- 从第几个开始（不含0），截几个
+-- LENGTH("abcdef");
+-- REPLACE(str,from_str,to_str)  str:原始字符串  from_str:原始字符串中的目标 to_str:替换的字符串内容
+-- 
+
+DROP PROCEDURE callConcat;
+CREATE PROCEDURE callConcat()
+BEGIN
+DECLARE str1 VARCHAR(20) DEFAULT "abc";
+DECLARE str2 VARCHAR(20) DEFAULT "def";
+DECLARE str3 VARCHAR(40);
+CALL concatStr(str1, str2, str3);
+SELECT str3;
+END
+
+CALL callConcat;
+
+-- IF callConcat THEN
+-- IF reverseStr() THEN
+
+-- 一般用于做主键或者数据的唯一标识符，设置primery key或者unique
+-- UUID():获得一个类似于序列号的随机的字符串，包含数字、字母，可以用来判断数据的唯一性
+
+-- 函数的语法
+DROP FUNCTION reverseStr;
+CREATE FUNCTION reverseStr(str VARCHAR(20))
+RETURNS VARCHAR(20)
+BEGIN
+RETURN REVERSE(str);
+END
+
+SET @nametest = reverseStr("abcd");
+SELECT @nametest;
+
+-- 有一个字符串a1b2c3d4，分别写一个存储过程和函数，返回将数字替换为“-”的结果
+DROP PROCEDURE replaceProc;
+CREATE PROCEDURE replaceProc(IN str VARCHAR(20), OUT result VARCHAR(20))
+BEGIN
+SET result = REPLACE(str, "1" , "-");
+SET result = REPLACE(result, "2" , "-");
+SET result = REPLACE(result, "3" , "-");
+SET result = REPLACE(result, "4" , "-");
+END
+
+CALL replaceProc("a1b2c3d4", @nametest);
+SELECT @nametest;
+
+
+DROP FUNCTION replaceFunc;
+CREATE FUNCTION replaceFunc(str VARCHAR(20))
+RETURNS VARCHAR(20)
+BEGIN
+DECLARE result VARCHAR(20);
+SET result = REPLACE(str, "1" , "-");
+SET result = REPLACE(result, "2" , "-");
+SET result = REPLACE(result, "3" , "-");
+SET result = REPLACE(result, "4" , "-");
+RETURN result;
+END
+
+SET @nametest = replaceFunc("a1b2c3d4");
+SELECT @nametest;
+
+-- ----------------------------触发器、游标、事物------------------------------------- --
+-- 触发器：对表中某个字段的监听行为，监听状态包括：修改、插入、更新（DML） -- 
+-- 当年龄update为负数时，将其设置为0 --
+-- new:更新数据时新的数据行
+-- old:更新数据时旧的数据行
+DROP TRIGGER ageTrigger;
+CREATE TRIGGER ageTrigger BEFORE UPDATE ON student FOR EACH ROW 
+BEGIN
+
+-- 当修改年龄时，如果年龄是负数，设置为0，如果年龄比原来小，设置为原来的年龄加1，如果比原来大，则正常
+IF new.sage < 0 THEN
+SET new.sage = 0;
+END IF;
+IF new.sage < old.sage THEN
+SET new.sage = old.sage + 1;
+END IF;
+
+-- 当修改性别时，如果不为男女，则默认设为男
+IF new.ssex != "男" AND new.ssex != "女" THEN
+SET new.ssex = "男";
+END IF;
+END
+
+CREATE TRIGGER ageTrigger_insert BEFORE INSERT ON student FOR EACH ROW 
+BEGIN
+IF new.sage < 0 THEN
+SET new.sage = 0;
+END IF;
+
+IF new.ssex != "男" AND new.ssex != "女" THEN
+SET new.ssex = "男";
+END IF;
+END
+
+-- 修改update 有new 有old
+-- 插入insert 有new 无old
+-- 删除delete 无new 有old
+
+-- 如何遍历数据库表
+-- 依次输出每一个student的所有成绩
+
+-- 1. 如何依次访问数据库的每一条数据
+-- 2. 如何循环
+-- 3. 如何结束
+
+DROP PROCEDURE enumStudent;
+CREATE PROCEDURE enumStudent() 
+BEGIN
+DECLARE stuNum VARCHAR(20);
+DECLARE ifRun INT DEFAULT TRUE; -- 设置条件控制默认值为true
+DECLARE countStu INT DEFAULT 0; -- 设置记录stu数量的变量
+-- 1. 定义游标
+DECLARE eachStu CURSOR FOR SELECT sno FROM student; 
+-- 2. 定义条件控制
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET ifRun = FALSE; -- 当出现异常时，自动将ifRun设为false
+
+-- 3. 开启游标
+OPEN eachStu;
+
+-- 4. 开始循环
+whileForStu: WHILE ifRun DO 
+	-- 5. 依次将每个值放入迭代变量
+	FETCH eachStu INTO stuNum;
+	SELECT * FROM sc WHERE sno = stuNum; -- 依次从sc表查询指定的stuNum对应的成绩
+	SET countStu = countStu + 1;
+END WHILE whileForStu;
+
+SELECT countStu;
+-- 6. 关闭游标
+CLOSE eachStu;
+END
+ 
+CALL enumStudent;
+
+-- 开启一个事务：假想的执行过程
+BEGIN;
+SAVEPOINT point;
+INSERT INTO student VALUES (3000, "s014", "wa1", 28, "男");
+SELECT * FROM student;
+SAVEPOINT point1;
+INSERT INTO student VALUES (3000, "s015", "wa2", 28, "男");
+SELECT * FROM student;
+SAVEPOINT point2;
+INSERT INTO student VALUES (3000, "s016", "wa3", 28, "男");
+SELECT * FROM student;
+SAVEPOINT point3;
+INSERT INTO student VALUES (3000, "s017", "wa4", 28, "男");
+SELECT * FROM student;
+SAVEPOINT point4;
+
+ROLLBACK TO point3;
+
+COMMIT;
+
+
+Try{
+Dao.delete（）
+comite
+}catch{
+	rollback
+}finally｛
+Close
+｝
